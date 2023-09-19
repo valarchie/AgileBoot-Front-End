@@ -97,7 +97,7 @@ export function useRole() {
       `确认要<strong>${
         row.status === 0 ? "停用" : "启用"
       }</strong><strong style='color:var(--el-color-primary)'>${
-        row.name
+        row.roleName
       }</strong>吗?`,
       "系统提示",
       {
