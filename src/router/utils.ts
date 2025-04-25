@@ -32,12 +32,7 @@ import { TokenDTO } from "@/api/common/login";
 
 function handRank(routeInfo: any) {
   const { name, path, parentId, meta } = routeInfo;
-  return isAllEmpty(parentId)
-    ? isAllEmpty(meta?.rank) ||
-      (meta?.rank === 0 && name !== "Home" && path !== "/")
-      ? true
-      : false
-    : false;
+  return isAllEmpty(parentId) ? !!(isAllEmpty(meta?.rank) || (meta?.rank === 0 && name !== "Home" && path !== "/")) : false;
 }
 
 /** 按照路由中meta下的rank等级升序来排序路由 */
@@ -75,11 +70,7 @@ function filterChildrenTree(data: RouteComponent[]) {
 
 /** 判断两个数组彼此是否存在相同值 */
 function isOneOfArray(a: Array<string>, b: Array<string>) {
-  return Array.isArray(a) && Array.isArray(b)
-    ? intersection(a, b).length > 0
-      ? true
-      : false
-    : true;
+  return Array.isArray(a) && Array.isArray(b) ? intersection(a, b).length > 0 : true;
 }
 
 /** 从sessionStorage里取出当前登陆用户的角色roles，过滤无权限的菜单 */
@@ -156,6 +147,20 @@ function handleAsyncRoutes(routeList) {
   if (routeList.length === 0) {
     usePermissionStoreHook().handleWholeMenus(routeList);
   } else {
+    // 处理所有顶层路由，直接挂到 layout 的 children 下
+    const topLevelIframes = routeList.filter((v: any) => v.meta?.frameSrc && (!v.parentId || v.parentId === 0));
+    if (topLevelIframes.length > 0) {
+      topLevelIframes.forEach((v: any) => {
+        // 防止重复添加
+        if (
+          !router.options.routes[0].children.some(
+            child => child.path === v.path
+          )
+        ) {
+          router.options.routes[0].children.push(v);
+        }
+      });
+    }
     formatFlatteningRoutes(addAsyncRoutes(routeList)).map(
       (v: RouteRecordRaw) => {
         // 防止重复添加路由
@@ -359,7 +364,7 @@ function hasAuth(value: string | Array<string>): boolean {
   const isAuths = isString(value)
     ? metaAuths.includes(value)
     : isIncludeAllChildren(value, metaAuths);
-  return isAuths ? true : false;
+  return !!isAuths;
 }
 
 /** 获取所有菜单中的第一个菜单（顶级菜单）*/
