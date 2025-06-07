@@ -1,3 +1,5 @@
+import { RouteItem } from "@/api/common/login";
+
 /**
  * @description 提取菜单树中的每一项uniqueId
  * @param tree 树
@@ -47,29 +49,41 @@ export const deleteChildren = (tree: any[], pathList = []): any => {
   return tree;
 };
 
+// 定义扩展属性类型
+export interface HierarchyNodeExtra {
+  id?: string;
+  parentId?: string | null;
+  pathList?: string[];
+}
+
 /**
  * @description 创建层级关系
  * @param tree 树
  * @param pathList 每一项的id组成的数组
  * @returns 创建层级关系后的树
  */
-export const buildHierarchyTree = (tree: any[], pathList = []): any => {
+export function buildHierarchyTree<T extends RouteItem & HierarchyNodeExtra>(
+  tree: T[],
+  pathList: string[] = []
+): T[] {
   if (!Array.isArray(tree)) {
     console.warn("tree must be an array");
     return [];
   }
   if (!tree || tree.length === 0) return [];
-  for (const [key, node] of tree.entries()) {
-    node.id = key;
-    node.parentId = pathList.length ? pathList[pathList.length - 1] : null;
+
+  for (const node of tree) {
+    node.id = node.meta.id;
+    node.parentId = pathList.at(-1) ?? null;
     node.pathList = [...pathList, node.id];
-    const hasChildren = node.children && node.children.length > 0;
-    if (hasChildren) {
+
+    if (node?.children?.length) {
       buildHierarchyTree(node.children, node.pathList);
     }
   }
+
   return tree;
-};
+}
 
 /**
  * @description 广度优先遍历，根据唯一uniqueId找当前节点信息

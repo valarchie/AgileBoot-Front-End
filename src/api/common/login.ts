@@ -1,4 +1,5 @@
 import { http } from "@/utils/http";
+import { RouteRecordRaw } from "vue-router";
 
 export type CaptchaDTO = {
   /**  验证码的base64图片 */
@@ -97,12 +98,67 @@ export const getLoginUserInfo = () => {
   return http.request<ResponseData<TokenDTO>>("get", "/getLoginUserInfo");
 };
 
-type Result = {
-  success: boolean;
-  data: Array<any>;
+export interface RouteMeta {
+  id: string;
+  title: string;
+  icon?: string;
+  showLink?: boolean;
+  showParent?: boolean;
+  auths?: string[];
+  rank?: number;
+  frameSrc?: string;
+  isFrameSrcInternal?: boolean;
+}
+
+export type RouteItem = RouteRecordRaw & {
+  name?: string;
+  path: string;
+  meta: RouteMeta;
+  children?: RouteItem[];
 };
 
-/** 获取动态菜单 */
-export const getAsyncRoutes = () => {
-  return http.request<Result>("get", "/getRouters");
+type AsyncRoutesResponse = {
+  code: number;
+  msg: string;
+  data: RouteItem[];
+};
+
+/**
+ * 为后端返回的路由添加唯一id，后面我们在构建菜单树的层级结构时需要用到
+ * 这里我们假设 name + path 是唯一的，若日后有 name + path 不唯一的情况，
+ * 则需要修改此处的逻辑
+ */
+const addUniqueId = (routes: RouteItem[]): RouteItem[] => {
+  return routes.map(route => {
+    const id = `${route.name || ""}${route.path}`;
+
+    if (route.children && route.children.length > 0) {
+      route.children = addUniqueId(route.children);
+    }
+
+    return {
+      ...route,
+      meta: {
+        ...route.meta,
+        id
+      }
+    };
+  });
+};
+
+function withId(result: AsyncRoutesResponse) {
+  if (result.data) {
+    result.data = addUniqueId(result.data);
+  }
+
+  return result;
+}
+
+/**
+ * 获取动态菜单
+ * TODO:对于开发环境下此处可以对路由数据做一些校验，比如说 name 是否重复，name+path 是否重复等等
+ */
+export const getAsyncRoutes = async () => {
+  const result = await http.request<AsyncRoutesResponse>("get", "/getRouters");
+  return withId(result);
 };
